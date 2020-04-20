@@ -1,0 +1,23 @@
+{
+  "name": "node-amf",
+  "version": "1.0.0",
+  "description": "Small library for converting AMF0 and AMF3 to JSON",
+  "main": "amf.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SwampApe/node-amf.git"
+  },
+  "author": "SwampApe",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/SwampApe/node-amf/issues"
+  },
+  "homepage": "https://github.com/SwampApe/node-amf#readme",
+  "dependencies": {},
+  "devDependencies": {
+    "jest": "^25.3.0"
+  }
+}
