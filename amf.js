@@ -1,5 +1,4 @@
 class AMF {
-    
     constructor() {
         this.is_Ver_0 = true;
         this.position = 0;
@@ -42,7 +41,7 @@ class AMF {
         while(true) {
             let key = this.readAMF0String(buf);
             if(key == '') {
-                this.position++;
+                this.position += 2;
                 return result;
             }
             
@@ -55,19 +54,16 @@ class AMF {
                 case this.AMF0.STRING:   
                 case this.AMF0.NULL:
                 case this.AMF0.LONG_STRING:
+                case this.AMF0.XML:
                 case this.AMF0.DATE:
-                case this.AMF0.AMF3:
                     let val = this.readAMF0Value(buf, type);
                     result[key] = val;
                     break;
                 case this.AMF0.OBJECT_END:
                     return result;
-                case this.AMF0.TYPED_OBJECT:
                 default:
-                    return;
-                    break;
+                    return result;
             }
-            
         }
     }
 
@@ -104,6 +100,7 @@ class AMF {
                 return this.readAMF0LongString(buf);
             case this.AMF0.DATE:
                 this.position += 10;
+                console.log(buf.readDoubleBE(this.position - 8));
                 return new Date(buf.readDoubleBE(this.position - 8));
             case this.AMF0.AMF3: 
                 this.is_Ver_0 = false;
@@ -111,7 +108,6 @@ class AMF {
             default:
                 //unexpected;
         }
-        
     }
 
     readAMF0StrictArray(buf) {
@@ -121,49 +117,61 @@ class AMF {
         for(let i = 0; i < length; i++) {
             let type = buf[this.position];
             this.position++;
-            result.push(this.readAMF0Value(buf, type));
-        }
-        return result;
-    }
-
-    decode(buf) {
-        //this.is_Ver_0 = true;
-        this.position = 0;
-        
-        let result = [];
-        
-        while(this.position < buf.length) {
-            let type = buf[this.position];
-            this.position++;
-            if(this.is_Ver_0) {
-                switch(type) {
+            switch(type) {
                 case this.AMF0.NUMBER:
                 case this.AMF0.BOOLEAN:
                 case this.AMF0.STRING:   
                 case this.AMF0.NULL:
                 case this.AMF0.LONG_STRING:
+                case this.AMF0.XML:
                 case this.AMF0.DATE:
-                case this.AMF0.AMF3:
                     result.push(this.readAMF0Value(buf, type));
-                case this.AMF0.ECMA_ARRAY:
-                    this.position += 4;
-                case this.AMF0.TYPED_OBJECT:
-                    //Treat as anonymous
-                case this.AMF0.OBJECT:
-                    result.push(this.decodeAMF0Obj(buf));
-                    break;
-                case this.AMF0.STRICT_ARRAY:
-                    result.push(this.readAMF0StrictArray(buf));
                     break;
                 default:
-                    //unexpected should not go here
-                }
-            } else {
-                
+                    //wuhh
+                    return result;
             }
         }
         return result;
     }
+
+    decode(buf) {
+        this.is_Ver_0 = true;
+        this.position = 0;
+        
+        let type = buf[this.position];
+        this.position++;
+        if(this.is_Ver_0) {
+            switch(type) {
+                case this.AMF0.NUMBER:
+                case this.AMF0.BOOLEAN:
+                case this.AMF0.STRING:   
+                case this.AMF0.NULL:
+                case this.AMF0.LONG_STRING:
+                case this.AMF0.XML:
+                case this.AMF0.DATE:
+                    return this.readAMF0Value(buf, type);
+                case this.AMF0.AMF3:
+                    this.readAMF0Value(buf, type);
+                case this.AMF0.TYPED_OBJECT:
+                case this.AMF0.ECMA_ARRAY:
+                    if(type == this.AMF0.TYPED_OBJECT) {
+                        let name = this.readAMF0String(buf);
+                        //Treat as anonymous
+                    } else {
+                        this.position += 4;
+                    }
+                case this.AMF0.OBJECT:
+                    return this.decodeAMF0Obj(buf);
+                case this.AMF0.STRICT_ARRAY:
+                    return this.readAMF0StrictArray(buf);
+            }
+        } else {
+            
+        }
+        
+        return undefined;
+    }
 }
 
-module.exports = {AMF};
+module.exports = AMF;
