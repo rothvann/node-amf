@@ -94,7 +94,7 @@ test('AMF0 XML', () => {
     let xml = Buffer.from(xml_string, 'utf8');
     let amf0 = Buffer.from('0f'.replace(/\n/g, ''), 'hex');
     let length = Buffer.alloc(4);
-    length.writeUIntBE(xml_string.length, 0, 4);
+    length.writeUIntBE(xml_string.length, 0, 4);this.position++;
     let buf = Buffer.concat([amf0, length, xml]);
     let res = decoder.decode(buf);
 });
@@ -102,6 +102,22 @@ test('AMF0 XML', () => {
 test('AMF0 Typed Object', () => {
     
 });
+
+
+test('AMF3 Integer', () => {
+    let binary = 
+    ['11010101 10101010 11010101 01010101'.replace(/\s/g, ''),
+    '11010101 10101010 01010101'.replace(/\s/g, ''),
+    '11010101 00101010'.replace(/\s/g, ''),
+    '01010101'.replace(/\s/g, ''),];
+    
+    for(let i = 0; i < 4; i++) {
+        
+        
+    }
+});
+
+
 
 
 

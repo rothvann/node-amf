@@ -39,7 +39,7 @@ class AMF {
     decodeAMF0Obj(buf) {
         let result = {};
         while(true) {
-            let key = this.readAMF0String(buf);
+            let key = this.readAMF0Value(buf, this.AMF0.STRING);
             if(key == '') {
                 this.position += 2;
                 return result;
@@ -67,22 +67,6 @@ class AMF {
         }
     }
 
-    readAMF0String(buf) {
-        let length = buf.readUIntBE(this.position, 2);
-        this.position += 2;
-        let key = buf.toString('utf8', this.position, this.position + length);
-        this.position += length;
-        return key;
-    }
-
-    readAMF0LongString(buf) {
-        let length = buf.readUIntBE(this.position, 4);
-        this.position += 4;
-        let key = buf.toString('utf8', this.position, this.position + length);
-        this.position += length;
-        return key;
-    }
-
     readAMF0Value(buf, type) {
         switch(type) {
             case this.AMF0.NUMBER:
@@ -91,13 +75,23 @@ class AMF {
             case this.AMF0.BOOLEAN:
                 this.position += 1;
                 return !!buf.readUIntBE(this.position - 1, 1);
-            case this.AMF0.STRING:   
-                return this.readAMF0String(buf);
+            case this.AMF0.STRING: {
+                let length = buf.readUIntBE(this.position, 2);
+                this.position += 2;
+                let key = buf.toString('utf8', this.position, this.position + length);
+                this.position += length;
+                return key;
+            }
             case this.AMF0.NULL:
                 return null;
             case this.AMF0.LONG_STRING:
-            case this.AMF0.XML:
-                return this.readAMF0LongString(buf);
+            case this.AMF0.XML: {
+                let length = buf.readUIntBE(this.position, 4);
+                this.position += 4;
+                let key = buf.toString('utf8', this.position, this.position + length);
+                this.position += length;
+                return key;
+            }.replace(/\s/g, '');
             case this.AMF0.DATE:
                 this.position += 10;
                 console.log(buf.readDoubleBE(this.position - 8));
@@ -135,6 +129,47 @@ class AMF {
         return result;
     }
 
+    readAMF3Value(buf, type) {
+         switch(type) {
+             case this.AMF3.UNDEFINED:
+                return undefined;
+             case this.AMF3.NULL:
+                return null;
+             case this.AMF3.FALSE:
+                return false;
+             case this.AMF3.TRUE:
+                return true;
+             case this.AMF3.INTEGER:
+                let bits = 0;
+                let cur_byte = buf[this.position];
+                this.position++;
+                bits += (cur_byte & 0b01111111) * Math.pow(2, 24);
+                if(cur_byte & 0b10000000) {
+                    cur_byte = buf[this.position];
+                    this.position++;
+                    bits += (cur_byte & 0b01111111) * Math.pow(2, 16);
+                    if(cur_byte & 0b10000000) {
+                        cur_byte = buf[this.position];
+                        this.position++;
+                        bits += (cur_byte & 0b01111111) * Math.pow(2, 8);
+                        if(cur_byte & 0b10000000) {
+                            cur_byte = buf[this.position];
+                            this.position++;                        
+                            bits += cur_byte;
+                        }
+                    }
+                }
+                return bits;
+             case this.AMF3.DOUBLE:
+                
+             case this.AMF3.STRING:
+                
+             
+         }
+        
+        
+    }
+    
     decode(buf) {
         this.is_Ver_0 = true;
         this.position = 0;
@@ -156,7 +191,7 @@ class AMF {
                 case this.AMF0.TYPED_OBJECT:
                 case this.AMF0.ECMA_ARRAY:
                     if(type == this.AMF0.TYPED_OBJECT) {
-                        let name = this.readAMF0String(buf);
+                        let name = this.readAMF0Value(buf, this.AMF0.STRING);
                         //Treat as anonymous
                     } else {
                         this.position += 4;
@@ -167,7 +202,12 @@ class AMF {
                     return this.readAMF0StrictArray(buf);
             }
         } else {
-            
+            switch(type) {
+                
+                
+                
+                
+            }
         }
         
         return undefined;
