@@ -34,6 +34,10 @@ class AMF {
             XML_END: 0x0b,
             BYTE_ARRAY: 0x0c
         };
+        
+        this.objTable = [];
+        this.stringTable = [];
+        this.traitTable = [];
     }
     
     decodeAMF0Obj(buf) {
@@ -91,7 +95,7 @@ class AMF {
                 return;            
             default:
                 console.log('Unknown AMF0 Value ${type}');
-                return undefined;
+                return null;
         }
     }
 
@@ -192,6 +196,8 @@ class AMF {
             return result;
         } else {
             //U29O-traits-ext
+            console.log('Externalizable not implemented');
+            return null;
         }
             
         
@@ -238,26 +244,39 @@ class AMF {
                 if(length & 1 == 0) {
                     let index = length >> 1;
                     //date ref
+                } else {
+                    this.position += 8;
+                    let val = new Date(buf.readDoubleBE(this.position - 8));
+                    objTable.push(val);
+                    return val;                    
                 }
             case this.AMF3.DOUBLE:
                 this.position += 8;
                 return new Date(buf.readDoubleBE(this.position - 8));
             case this.AMF3.STRING:
+                let length = this.readU29(buf);
+                if(length & 1 == 0) {
+                    let index = length >> 1;
+                    return stringTable[index];
+                } else {
+                    length = length >> 1;
+                    let key = buf.toString('utf8', this.position, this.position + length);
+                    this.position += length;
+                    stringTable.push(key);
+                    return key;
+                }
             case this.AMF3.XMLDocument:
             case this.AMF3.XML:
                 let length = this.readU29(buf);
                 if(length & 1 == 0) {
                     let index = length >> 1;
-                    //string ref
+                    return objTable[index];
                 } else {
                     length = length >> 1;
                     let key = buf.toString('utf8', this.position, this.position + length);
                     this.position += length;
+                    objTable.push(key);
                     return key;
-                }
-                else {
-                    this.position += 8;
-                    return new Date(buf.readDoubleBE(this.position - 8));
                 }
             case this.AMF3.BYTE_ARRAY:
                 let length = this.readU29(buf);
@@ -266,11 +285,13 @@ class AMF {
                     //byte array ref
                 } else {
                     length = length >> 1;
-                    return buf.slice(this.position, this.position + length);
+                    let byte_arr = buf.slice(this.position, this.position + length);
+                    objTable.push(byte_arr);
+                    return byte_arr;
                 }
             default:
                 console.log('Unknown AMF3 Value ${type}');
-                return undefined;
+                return null;
          }
     }
     
@@ -293,9 +314,13 @@ class AMF {
                         this.position += 4;
                     }
                 case this.AMF0.OBJECT:
-                    return this.decodeAMF0Obj(buf);
+                    let val = this.decodeAMF0Obj(buf);
+                    objTable.push(val);
+                    return val;
                 case this.AMF0.STRICT_ARRAY:
-                    return this.readAMF0StrictArray(buf);
+                    let val = this.readAMF0StrictArray(buf);
+                    objTable.push(val);
+                    return val;
                 default:
                     return this.readAMF0Value(buf, type);
             }
@@ -310,7 +335,7 @@ class AMF {
             }
         }
         
-        return undefined;
+        return null;
     }
 }
 
