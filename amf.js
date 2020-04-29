@@ -1,6 +1,6 @@
 class AMF {
     constructor() {
-        this.is_Ver_0 = true;
+        this.isVersion0 = true;
         this.position = 0;
         
         this.AMF0 = {
@@ -40,40 +40,36 @@ class AMF {
         this.traitTable = [];
     }
     
-    decodeAMF0Obj(buf) {
+    decodeAMF0Obj(buffer) {
         let result = {};
         while(true) {
-            let key = this.readAMF0Value(buf, this.AMF0.STRING);
+            let key = this.readAMF0Value(buffer, this.AMF0.STRING);
             if(key == '') {
                 this.position += 2;
                 return result;
             }
             
-            let type = buf[this.position];
+            let type = buffer[this.position];
             this.position++;
             
-            switch(type) {
-                case this.AMF0.OBJECT_END:
-                    return result;
-                default:
-                    let val = this.readAMF0Value(buf, type);
-                    result[key] = val;
-            }
+            let val = this.readAMF0Value(buffer, type);
+            result[key] = val;
+            
         }
     }
 
-    readAMF0Value(buf, type) {
+    readAMF0Value(buffer, type) {
         switch(type) {
             case this.AMF0.NUMBER:
                 this.position += 8;
-                return buf.readDoubleBE(this.position - 8);
+                return buffer.readDoubleBE(this.position - 8);
             case this.AMF0.BOOLEAN:
                 this.position += 1;
-                return !!buf.readUIntBE(this.position - 1, 1);
+                return !!buffer.readUIntBE(this.position - 1, 1);
             case this.AMF0.STRING: {
-                let length = buf.readUIntBE(this.position, 2);
+                let length = buffer.readUIntBE(this.position, 2);
                 this.position += 2;
-                let key = buf.toString('utf8', this.position, this.position + length);
+                let key = buffer.toString('utf8', this.position, this.position + length);
                 this.position += length;
                 return key;
             }
@@ -81,64 +77,64 @@ class AMF {
                 return null;
             case this.AMF0.LONG_STRING:
             case this.AMF0.XML: {
-                let length = buf.readUIntBE(this.position, 4);
+                let length = buffer.readUIntBE(this.position, 4);
                 this.position += 4;
-                let key = buf.toString('utf8', this.position, this.position + length);
+                let key = buffer.toString('utf8', this.position, this.position + length);
                 this.position += length;
                 return key;
-            }.replace(/\s/g, '');
+            }
             case this.AMF0.DATE:
                 this.position += 10;
-                return new Date(buf.readDoubleBE(this.position - 8));
+                return new Date(buffer.readDoubleBE(this.position - 8));
             case this.AMF0.AMF3: 
-                this.is_Ver_0 = false;
+                this.isVersion0 = false;
                 return;            
             default:
-                console.log('Unknown AMF0 Value ${type}');
-                return null;
+                throw new Error('Unknown AMF0 Value ' + type);
         }
     }
 
-    readAMF0StrictArray(buf) {
-        let length = buf.readUIntBE(this.position, 4);
+    readAMF0StrictArray(buffer) {
+        let length = buffer.readUIntBE(this.position, 4);
         this.position += 4;
         let result = [];
         for(let i = 0; i < length; i++) {
-            let type = buf[this.position];
+            let type = buffer[this.position];
             this.position++;
-            result.push(this.readAMF0Value(buf, type));
+            result.push(this.readAMF0Value(buffer, type));
         }
         return result;
     }
     
-    readAMF3Array(buf) {
-        let length = this.readU29(buf);
+    readAMF3Array(buffer) {
+        let length = this.readU29(buffer);
         if(length & 1 == 0) {
             let index = length >> 1;
         } else {
             length = length >> 1;
-            let dense = [];
-            for(let i = 0; i < length; i++) {
-                let type = buf[this.position];
-                this.position++;
-                dense.push(this.readAMF3Value(buf, type));
-            }
             let associative = {};
             while(true) {
-                let key = this.readAMF3Value(buf, this.AMF3.STRING);
+                let key = this.readAMF3Value(buffer, this.AMF3.STRING);
                 if(key == '') {
-                    return {dense: dense, associative: associative};
+                    break;
                 } else {
-                    let type = buf[this.position];
+                    let type = buffer[this.position];
                     this.position++;
-                    associative[key] = this.readAMF3Value(buf, type);
+                    associative[key] = this.readAMF3Value(buffer, type);
                 }
             }
+            let dense = [];
+            for(let i = 0; i < length; i++) {
+                let type = buffer[this.position];
+                this.position++;
+                dense.push(this.readAMF3Value(buffer, type));
+            }
+            return {dense: dense, associative: associative};
         }
     }
     
-    readAMF3Object(buf) {
-        let flags = this.readU29(buf);
+    readAMF3Object(buffer) {
+        let flags = this.readU29(buffer);
         let traits;
         if(flags & 0b1 == 0) {
             //U29O-ref
@@ -146,13 +142,13 @@ class AMF {
             //return ref
             
         } else {
-            if(flags & 0b10 == 0) {
+            if((flags & 0b10) == 0) {
                 let index = flags >> 1;
-                
+                traits = this.traitTable[index];
                 //set traits from ref
                 
-            } else {=
-                if(flags & 0b100 == 0) {
+            } else {
+                if((flags & 0b100) == 0) {
                     if(flags & 0b1000 == 0) {
                         traits = 0b00;
                     } else {
@@ -164,70 +160,81 @@ class AMF {
             }
         }
         
-        if(traits & 1 == 0) {
+        if((traits & 1) == 0) {
             let length = flags >> 4;
             let result = {};
             
-            let name = this.readAMF3Value(buf, this.AMF3.STRING);
+            let name = this.readAMF3Value(buffer, this.AMF3.STRING);
             result['name'] = name;
             
             
             for(let i = 0; i < length; i++) {
-                let key = this.readAMF3Value(buf, this.AMF3.STRING);
-                let type = buf[this.position];
+                let key = this.readAMF3Value(buffer, this.AMF3.STRING);
+                let type = buffer[this.position];
                 this.position++;
-                result[key] = this.readAMF3Value(buf, type);
+                result[key] = this.readAMF3Value(buffer, type);
             }
             
-            
            
-            if(traits & 0b10 != 0) {
+            if((traits & 0b10) != 0) {
                 while(true) {
-                    let key = this.readAMF3Value(buf, this.AMF3.STRING);
+                    let key = this.readAMF3Value(buffer, this.AMF3.STRING);
                     if(key == '') {
                         return result;
                     }
-                    let type = buf[this.position];
+                    let type = buffer[this.position];
                     this.position++;
-                    result[key] = this.readAMF3Value(buf, type);
+                    result[key] = this.readAMF3Value(buffer, type);
                 }
             }
             
             return result;
         } else {
             //U29O-traits-ext
-            console.log('Externalizable not implemented');
-            return null;
+            throw new Error('Externalizable not implemented');
         }
             
         
         
     }
     
-    readU29(buf) {
-        let bits = 0;
-        let cur_byte = buf[this.position];
+    readU29(buffer) {
+        let bits = 0;   
+        let currentByte = buffer.readUIntBE(this.position, 1);
         this.position++;
-        bits += (cur_byte & 0b01111111) * Math.pow(2, 24);
-        if(cur_byte & 0b10000000) {
-            cur_byte = buf[this.position];
-            this.position++;
-            bits += (cur_byte & 0b01111111) * Math.pow(2, 16);
-            if(cur_byte & 0b10000000) {
-                cur_byte = buf[this.position];
-                this.position++;
-                bits += (cur_byte & 0b01111111) * Math.pow(2, 8);
-                if(cur_byte & 0b10000000) {
-                    cur_byte = buf[this.position];
-                    this.position++;                        
-                    bits += cur_byte;
-                }
-            }
-        }
+        bits = bits << 7;
+        bits = bits | (currentByte & 0b01111111);
+        if(currentByte < 128) {
+            return bits;
+        } 
+        
+        currentByte = buffer.readUIntBE(this.position, 1);
+        this.position++;
+        
+        bits = bits << 7;
+        bits = bits | (currentByte & 0b01111111);
+        if(currentByte < 128) {
+            return bits;
+        } 
+        
+        currentByte = buffer.readUIntBE(this.position, 1);
+        this.position++;
+        
+        bits = bits << 7;
+        bits = bits | (currentByte & 0b01111111);
+        if(currentByte < 128) {
+            return bits;
+        } 
+        
+        currentByte = buffer.readUIntBE(this.position, 1);
+        this.position++;
+        
+        bits = bits << 8;
+        bits = bits | (currentByte);
         return bits;
     }
 
-    readAMF3Value(buf, type) {
+    readAMF3Value(buffer, type) {
          switch(type) {
             case this.AMF3.UNDEFINED:
                 return undefined;
@@ -238,104 +245,112 @@ class AMF {
             case this.AMF3.TRUE:
                 return true;
             case this.AMF3.INTEGER:
-                return this.readU29(buf);
-            case this.AMF3.DATE:
-                let length = readU29(buf);
-                if(length & 1 == 0) {
-                    let index = length >> 1;
-                    //date ref
-                } else {
-                    this.position += 8;
-                    let val = new Date(buf.readDoubleBE(this.position - 8));
-                    objTable.push(val);
-                    return val;                    
-                }
+                return this.readU29(buffer);
             case this.AMF3.DOUBLE:
                 this.position += 8;
-                return new Date(buf.readDoubleBE(this.position - 8));
-            case this.AMF3.STRING:
-                let length = this.readU29(buf);
+                return buffer.readDoubleBE(this.position - 8);
+            case this.AMF3.STRING: {
+                let length = this.readU29(buffer);
                 if(length & 1 == 0) {
                     let index = length >> 1;
-                    return stringTable[index];
+                    return this.stringTable[index];
                 } else {
                     length = length >> 1;
-                    let key = buf.toString('utf8', this.position, this.position + length);
+                    let key = buffer.toString('utf8', this.position, this.position + length);
                     this.position += length;
-                    stringTable.push(key);
+                    this.stringTable.push(key);
                     return key;
                 }
+            }
             case this.AMF3.XMLDocument:
-            case this.AMF3.XML:
-                let length = this.readU29(buf);
+            case this.AMF3.XML: {
+                let length = this.readU29(buffer);
                 if(length & 1 == 0) {
                     let index = length >> 1;
-                    return objTable[index];
+                    return this.objTable[index];
                 } else {
                     length = length >> 1;
-                    let key = buf.toString('utf8', this.position, this.position + length);
+                    let key = buffer.toString('utf8', this.position, this.position + length);
                     this.position += length;
-                    objTable.push(key);
+                    this.objTable.push(key);
                     return key;
                 }
-            case this.AMF3.BYTE_ARRAY:
-                let length = this.readU29(buf);
+            }
+            case this.AMF3.DATE: {
+                let length = this.readU29(buffer);
+                if(length & 1 == 0) {
+                    let index = length >> 1;
+                    return this.objTable[index];
+                } else {
+                    this.position += 8;
+                    let val = new Date(buffer.readDoubleBE(this.position - 8));
+                    this.objTable.push(val);
+                    return val;                    
+                }
+            }
+            case this.AMF3.BYTE_ARRAY: {
+                let length = this.readU29(buffer);
                 if(length & 1 == 0) {
                     let index = length >> 1;
                     //byte array ref
                 } else {
                     length = length >> 1;
-                    let byte_arr = buf.slice(this.position, this.position + length);
-                    objTable.push(byte_arr);
-                    return byte_arr;
+                    let byteArr = buffer.slice(this.position, this.position + length);
+                    this.objTable.push(byteArr);
+                    return byteArr;
                 }
+            }
             default:
-                console.log('Unknown AMF3 Value ${type}');
-                return null;
+                throw new Error('Unknown AMF3 Value ' + type);
          }
     }
     
-    decode(buf) {
-        this.is_Ver_0 = true;
+    decode(buffer) {
+        this.isVersion0 = true;
         this.position = 0;
         
-        let type = buf[this.position];
-        this.position++;
-        if(this.is_Ver_0) {
-            switch(type) {
-                case this.AMF0.AMF3:
-                    this.readAMF0Value(buf, type);
-                case this.AMF0.TYPED_OBJECT:
-                case this.AMF0.ECMA_ARRAY:
-                    if(type == this.AMF0.TYPED_OBJECT) {
-                        let name = this.readAMF0Value(buf, this.AMF0.STRING);
-                        //Treat as anonymous
-                    } else {
-                        this.position += 4;
+        while(true) {            
+            let type = buffer[this.position];
+            this.position++;
+            if(this.isVersion0) {
+                switch(type) {
+                    case this.AMF0.AMF3:
+                        this.readAMF0Value(buffer, type);
+                        break;
+                    case this.AMF0.TYPED_OBJECT:
+                    case this.AMF0.ECMA_ARRAY: {
+                        if(type == this.AMF0.TYPED_OBJECT) {
+                            let name = this.readAMF0Value(buffer, this.AMF0.STRING);
+                            //Treat as anonymous
+                        } else {
+                            this.position += 4;
+                        }
                     }
-                case this.AMF0.OBJECT:
-                    let val = this.decodeAMF0Obj(buf);
-                    objTable.push(val);
-                    return val;
-                case this.AMF0.STRICT_ARRAY:
-                    let val = this.readAMF0StrictArray(buf);
-                    objTable.push(val);
-                    return val;
-                default:
-                    return this.readAMF0Value(buf, type);
-            }
-        } else {
-            switch(type) {
-             case this.AMF3.ARRAY:
-                return this.readAMF3Array(buf);
-             case this.AMF3.OBJECT:
-                return this.readAMF3Object(buf);
-             default:
-                return this.readAMF3Value(buf, type);
+                    case this.AMF0.OBJECT: {
+                        let val = this.decodeAMF0Obj(buffer);
+                        this.objTable.push(val);
+                        return val;
+                    }
+                    case this.AMF0.STRICT_ARRAY: {
+                        let val = this.readAMF0StrictArray(buffer);
+                        this.objTable.push(val);
+                        return val;
+                    }
+                    default:
+                        return this.readAMF0Value(buffer, type);
+                }
+            } else {
+                switch(type) {
+                 case this.AMF3.ARRAY:
+                    return this.readAMF3Array(buffer);
+                 case this.AMF3.OBJECT:
+                    return this.readAMF3Object(buffer);
+                 default:
+                    return this.readAMF3Value(buffer, type);
+                }
             }
         }
-        
-        return null;
+       
     }
 }
 
