@@ -284,6 +284,7 @@ class AMF {
           length >>= 1;
           const byteArr = buffer.slice(this.position, this.position + length);
           this.objTable.push(byteArr);
+          this.position += length;
           return byteArr;
         }
       }
@@ -296,7 +297,8 @@ class AMF {
     this.isVersion0 = true;
     this.position = 0;
 
-    while (true) {
+    const result = [];
+    while (this.position < buffer.length) {
       const type = buffer[this.position];
       this.position++;
       if (this.isVersion0) {
@@ -316,27 +318,34 @@ class AMF {
           case this.AMF0.OBJECT: {
             const val = this.decodeAMF0Obj(buffer);
             this.objTable.push(val);
-            return val;
+            result.push(val);
+            break;
           }
           case this.AMF0.STRICT_ARRAY: {
             const val = this.readAMF0StrictArray(buffer);
             this.objTable.push(val);
-            return val;
+            result.push(val);
+            break;
           }
           default:
-            return this.readAMF0Value(buffer, type);
+            result.push(this.readAMF0Value(buffer, type));
+            break;
         }
       } else {
         switch (type) {
           case this.AMF3.ARRAY:
-            return this.readAMF3Array(buffer);
+            result.push(this.readAMF3Array(buffer));
+            break;
           case this.AMF3.OBJECT:
-            return this.readAMF3Object(buffer);
+            result.push(this.readAMF3Object(buffer));
+            break;
           default:
-            return this.readAMF3Value(buffer, type);
+            result.push(this.readAMF3Value(buffer, type));
+            break;
         }
       }
     }
+    return result;
   }
 }
 

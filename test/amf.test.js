@@ -11,7 +11,7 @@ describe('AMF0', () => {
   test('Number', () => {
     const amf0 = '00 41 ce 7d 0d ca 00 00 00'.replace(/\s/g, '');
     const res = testDecoder(amf0);
-    expect(res).toEqual(1023024020);
+    expect(res).toEqual([1023024020]);
   });
 
   test('Boolean', () => {
@@ -23,32 +23,32 @@ describe('AMF0', () => {
   test('String', () => {
     const amf0 = '02 00 0c 41 4d 46 30 20 42 6f 6f 6c 65 61 6e'.replace(/\s/g, '');
     const res = testDecoder(amf0);
-    expect(res).toEqual('AMF0 Boolean');
+    expect(res).toEqual(['AMF0 Boolean']);
   });
 
   test('Object', () => {
     const amf0 = '03 00 04 6e 61 6d 65 02 00 04 4d 69 6b 65 00 03 61 67 65 00 40 3e 00 00 00 00 00 00 00 05 61 6c 69 61 73 02 00 04 4d 69 6b 65 00 00 09'.replace(/\s/g, '');
     const res = testDecoder(amf0);
-    expect(res).toEqual({ name: 'Mike', age: 30, alias: 'Mike' });
+    expect(res).toEqual([{ name: 'Mike', age: 30, alias: 'Mike' }]);
   });
 
   test('Null', () => {
     const amf0 = '05'.replace(/\s/g, '');
     const res = testDecoder(amf0);
-    expect(res).toBeNull();
+    expect(res[0]).toBeNull();
   });
 
   test('ECMA Array', () => {
     const amf0 = '08 00 00 00 00 00 04 6e 61 6d 65 02 00 04 4d 69 6b 65 00 03 61 67 65 00 40 3e 00 00 00 00 00 00 00 05 61 6c 69 61 73 02 00 04 4d 69 6b 65 00 00 09'.replace(/\s/g, '');
     const res = testDecoder(amf0);
-    expect(res).toEqual({ name: 'Mike', age: 30, alias: 'Mike' });
+    expect(res).toEqual([{ name: 'Mike', age: 30, alias: 'Mike' }]);
   });
 
   test('Strict Array', () => {
     const amf0 = '0a 00 00 00 04 02 00 0c 41 4d 46 30 20 42 6f 6f 6c 65 61 6e 00 41 ce 7d 0d ca 00 00 00 01 01 0b 00 00 41 d7 a7 cf 97 40 00 00'.replace(/\s/g, '');
     const res = testDecoder(amf0);
     // string number boolean date
-    expect(res).toEqual(['AMF0 Boolean', 1023024020, true, new Date(1587494493)]);
+    expect(res).toEqual([['AMF0 Boolean', 1023024020, true, new Date(1587494493)]]);
   });
 
   test('Date', () => {
@@ -58,13 +58,13 @@ describe('AMF0', () => {
     amf0.writeDoubleBE(date, 3, 8);
     const res = decoder.decode(amf0);
     // 1587494493
-    expect(res).toEqual(new Date(date));
+    expect(res).toEqual([new Date(date)]);
   });
 
   test('Long String', () => {
     const amf0 = '0c 00 00 00 10 41 4d 46 30 20 4c 6f 6e 67 20 53 74 72 69 6e 67'.replace(/\s/g, '');
     const res = testDecoder(amf0);
-    expect(res).toEqual('AMF0 Long String');
+    expect(res).toEqual(['AMF0 Long String']);
   });
 
   test('XML', () => {
@@ -96,7 +96,7 @@ describe('AMF0', () => {
     length.writeUIntBE(xmlString.length, 0, 4);
     const buffer = Buffer.concat([amf0, length, xml]);
     const res = decoder.decode(buffer);
-    expect(res).toEqual(xmlString);
+    expect(res).toEqual([xmlString]);
   });
 
   test('Typed Object', () => {
@@ -108,25 +108,25 @@ describe('AMF3', () => {
   test('Undefined', () => {
     const amf3 = '1100';
     const res = testDecoder(amf3);
-    expect(res).toBeUndefined();
+    expect(res[0]).toBeUndefined();
   });
 
   test('Null', () => {
     const amf3 = '1101';
     const res = testDecoder(amf3);
-    expect(res).toBeNull();
+    expect(res[0]).toBeNull();
   });
 
   test('Boolean False', () => {
     const amf3 = '1102';
     const res = testDecoder(amf3);
-    expect(res).toEqual(false);
+    expect(res[0]).toEqual(false);
   });
 
   test('Boolean True', () => {
     const amf3 = '1103';
     const res = testDecoder(amf3);
-    expect(res).toEqual(true);
+    expect(res[0]).toEqual(true);
   });
 
 
@@ -145,14 +145,14 @@ describe('AMF3', () => {
 
     for (let i = 0; i < 4; i++) {
       const res = testDecoder(binary[i]);
-      expect(res).toEqual(result[i]);
+      expect(res).toEqual([result[i]]);
     }
   });
 
   test('Double', () => {
     const amf3 = '11 05 40 c8 1c d6 e6 31 f8 a1'.replace(/\s/g, '');
     const res = testDecoder(amf3);
-    expect(res).toEqual(12345.6789);
+    expect(res).toEqual([12345.6789]);
   });
 
   test('String', () => {
@@ -161,7 +161,7 @@ describe('AMF3', () => {
     let amf3 = Buffer.from('1106', 'hex');
     amf3 = Buffer.concat([amf3, length, string]);
     const res = decoder.decode(amf3);
-    expect(res).toEqual('dynamic');
+    expect(res).toEqual(['dynamic']);
   });
 
   test('XMLDocument', () => {
@@ -192,7 +192,7 @@ describe('AMF3', () => {
     let amf3 = Buffer.from('1107', 'hex');
     amf3 = Buffer.concat([amf3, length, xml]);
     const res = decoder.decode(amf3);
-    expect(res).toEqual(xmlString);
+    expect(res).toEqual([xmlString]);
   });
 
   test('Date', () => {
@@ -203,7 +203,7 @@ describe('AMF3', () => {
     amf3[2] = 0b00000001;
     amf3.writeDoubleBE(date, 3, 8);
     const res = decoder.decode(amf3);
-    expect(res).toEqual(new Date(date));
+    expect(res).toEqual([new Date(date)]);
   });
 
   // 11 06 21 74 65 73 74 20 61 6d 66 33 20 73 74 72 69 6e 67 'test amf3 string'
@@ -218,7 +218,7 @@ describe('AMF3', () => {
     dense = Buffer.from(dense, 'hex');
     amf3 = Buffer.concat([amf3, associative, dense]);
     const res = decoder.decode(amf3);
-    expect(res).toEqual({ associative: { test: 'test amf3 string', date: new Date(1588126908987) }, dense: ['test amf3 string', 'test', 'date', new Date(1588126908987)] });
+    expect(res).toEqual([{ associative: { test: 'test amf3 string', date: new Date(1588126908987) }, dense: ['test amf3 string', 'test', 'date', new Date(1588126908987)] }]);
   });
 
 
@@ -230,9 +230,9 @@ describe('AMF3', () => {
     dynamic = Buffer.from(dynamic, 'hex');
 
     const res = decoder.decode(Buffer.concat([amf3, members, dynamic]));
-    expect(res).toEqual({
+    expect(res).toEqual([{
       test: 'test amf3 string', date: new Date(1588126908987), dynamic: 'dynamic string', name: '',
-    });
+    }]);
   });
 
   test('XML', () => {
@@ -263,12 +263,12 @@ describe('AMF3', () => {
     let amf3 = Buffer.from('1107', 'hex');
     amf3 = Buffer.concat([amf3, length, xml]);
     const res = decoder.decode(amf3);
-    expect(res).toEqual(xmlString);
+    expect(res).toEqual([xmlString]);
   });
 
   test('Byte Array', () => {
     const amf3 = Buffer.from([0x11, 0x0c, 0b00010101, 0x11, 0x21, 0x31, 0x41, 0x51, 0x61, 0x71, 0x81, 0x91, 0x10], 'hex');
     const res = decoder.decode(amf3);
-    expect(res).toEqual(Buffer.from([0x11, 0x21, 0x31, 0x41, 0x51, 0x61, 0x71, 0x81, 0x91, 0x10]));
+    expect(res).toEqual([Buffer.from([0x11, 0x21, 0x31, 0x41, 0x51, 0x61, 0x71, 0x81, 0x91, 0x10])]);
   });
 });
