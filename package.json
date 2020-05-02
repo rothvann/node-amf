@@ -1,6 +1,6 @@
 {
   "name": "node-amf",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Small library for converting AMF0 and AMF3 to JSON",
   "main": "amf.js",
   "scripts": {
