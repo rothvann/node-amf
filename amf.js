@@ -52,8 +52,11 @@ class AMF {
       const type = buffer[this.position];
       this.position++;
 
-      const val = this.readAMF0Value(buffer, type);
-      result[key] = val;
+      if (type === this.AMF0.OBJECT) {
+        result[key] = this.decodeAMF0Obj(buffer);
+      } else {
+        result[key] = this.readAMF0Value(buffer, type);
+      }
     }
   }
 
