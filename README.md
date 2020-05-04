@@ -18,5 +18,9 @@ result should have a value of
 ['_result']
 ```
 ## TODO
-Finish AMF0 tests
-AMF3 Encoding
+- [x] AMF0 Decoding
+- [x] AMF3 Decoding
+- [x] AMF0 Encoding 
+- [ ] Finish AMF0 tests
+- [ ] AMF3 Encoding
+- [ ] Finish AMF3 tests
