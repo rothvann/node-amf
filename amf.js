@@ -40,26 +40,6 @@ class AMF {
     this.traitTable = [];
   }
 
-  decodeAMF0Obj(buffer) {
-    const result = {};
-    while (true) {
-      const key = this.readAMF0Value(buffer, this.AMF0.STRING);
-      if (key == '') {
-        this.position += 2;
-        return result;
-      }
-
-      const type = buffer[this.position];
-      this.position++;
-
-      if (type === this.AMF0.OBJECT) {
-        result[key] = this.decodeAMF0Obj(buffer);
-      } else {
-        result[key] = this.readAMF0Value(buffer, type);
-      }
-    }
-  }
-
   readAMF0Value(buffer, type) {
     switch (type) {
       case this.AMF0.NUMBER:
@@ -92,11 +72,10 @@ class AMF {
         const result = {};
         while (true) {
           const key = this.readAMF0Value(buffer, this.AMF0.STRING);
-          if (key == '') {
+          if (key === '') {
             this.position += 2;
             return result;
           }
-
           const type = buffer[this.position];
           this.position++;
           result[key] = this.readAMF0Value(buffer, type);
@@ -143,7 +122,7 @@ class AMF {
       const associative = {};
       while (true) {
         const key = this.readAMF3Value(buffer, this.AMF3.STRING);
-        if (key == '') {
+        if (key === '') {
           break;
         } else {
           const type = buffer[this.position];
@@ -168,11 +147,11 @@ class AMF {
       // U29O-ref
       const index = flags >> 1;
       // return ref
-    } else if ((flags & 0b10) == 0) {
+    } else if ((flags & 0b10) === 0) {
       const index = flags >> 1;
       traits = this.traitTable[index];
       // set traits from ref
-    } else if ((flags & 0b100) == 0) {
+    } else if ((flags & 0b100) === 0) {
       if (flags & 0b1000 === 0) {
         traits = 0b00;
       } else {
@@ -182,7 +161,7 @@ class AMF {
       traits = 0b01;
     }
 
-    if ((traits & 1) == 0) {
+    if ((traits & 1) === 0) {
       const length = flags >> 4;
       const result = {};
 
@@ -201,7 +180,7 @@ class AMF {
       if ((traits & 0b10) != 0) {
         while (true) {
           const key = this.readAMF3Value(buffer, this.AMF3.STRING);
-          if (key == '') {
+          if (key === '') {
             return result;
           }
           const type = buffer[this.position];
@@ -337,7 +316,7 @@ class AMF {
             break;
           case this.AMF0.TYPED_OBJECT:
           case this.AMF0.ECMA_ARRAY: {
-            if (type == this.AMF0.TYPED_OBJECT) {
+            if (type === this.AMF0.TYPED_OBJECT) {
               const name = this.readAMF0Value(buffer, this.AMF0.STRING);
               // Treat as anonymous
             } else {
@@ -378,27 +357,11 @@ class AMF {
   }
 
   writeAMF0Value(type, value) {
-    this.AMF0 = {
-      NUMBER: 0x00,
-      BOOLEAN: 0x01,
-      STRING: 0x02,
-      OBJECT: 0x03,
-      NULL: 0x05,
-      ECMA_ARRAY: 0x08,
-      OBJECT_END: 0x09,
-      STRICT_ARRAY: 0x0a,
-      DATE: 0x0b,
-      LONG_STRING: 0x0c,
-      XML: 0X0f,
-      TYPED_OBJECT: 0x10,
-      AMF3: 0x11,
-    };
-
     switch (type) {
       case 'null':
         return Buffer.from([0x05]);
       case 'boolean':
-        return value ? Buffer.from([0x01]) : Buffer.from([0x00]);
+        return value ? Buffer.from([0x01, 0x01]) : Buffer.from([0x01, 0x00]);
       case 'string': {
         const result = Buffer.alloc(3 + value.length);
         result[0] = 0x02;
@@ -409,19 +372,35 @@ class AMF {
       case 'object':
         // Decide between object, strict array
         if (value.length) {
-
-        } else {
-
+          let result = Buffer.alloc(5);
+          result[0] = 0x0a;
+          result.writeUIntBE(value.length, 0, 4);
+          for (const val of value) {
+            const type = typeof val;
+            result = Buffer.concat([result, this.writeAMF0Value(type, val)]);
+          }
+          return result;
         }
+        let result = Buffer.alloc(1);
+        result[0] = 0x03;
+        for (const key in value) {
+          const property = this.writeAMF0Value('string', key).slice(1);
+          const type = typeof value[key];
+          const val = this.writeAMF0Value(type, value[key]);
+          result = Buffer.concat([result, property, val]);
+        }
+        result = Buffer.concat([result, Buffer.from([0x00, 0x00])]);
+        return result;
+
         break;
       case 'number': {
         const result = Buffer.alloc(9);
         result[0] = 0x00;
-        result.writeUIntBE(value, 1, 8);
+        result.writeDoubleBE(value, 1, 8);
         return result;
       }
       default:
-        // can't encode symbosl :/
+        // can't encode symbols or undefined to amf0 :/
         break;
     }
     /*
@@ -436,8 +415,16 @@ class AMF {
   }
 
   encodeAMF0(obj) {
-
-
+    let result = Buffer.from([]);
+    if (obj.length) {
+      for (const val of obj) {
+        const type = typeof val;
+        result = Buffer.concat([result, this.writeAMF0Value(type, val)]);
+      }
+    } else {
+      result = this.writeAMF0Value(obj);
+    }
+    return result;
   }
 }
 
