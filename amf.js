@@ -88,6 +88,32 @@ class AMF {
       case this.AMF0.DATE:
         this.position += 10;
         return new Date(buffer.readDoubleBE(this.position - 8));
+      case this.AMF0.OBJECT: {
+        const result = {};
+        while (true) {
+          const key = this.readAMF0Value(buffer, this.AMF0.STRING);
+          if (key == '') {
+            this.position += 2;
+            return result;
+          }
+
+          const type = buffer[this.position];
+          this.position++;
+          result[key] = this.readAMF0Value(buffer, type);
+        }
+      }
+
+      case this.AMF0.STRICT_ARRAY: {
+        const length = buffer.readUIntBE(this.position, 4);
+        this.position += 4;
+        const result = [];
+        for (let i = 0; i < length; i++) {
+          const type = buffer[this.position];
+          this.position++;
+          result.push(this.readAMF0Value(buffer, type));
+        }
+        return result;
+      }
       case this.AMF0.AMF3:
         this.isVersion0 = false;
         return;
@@ -319,13 +345,13 @@ class AMF {
             }
           }
           case this.AMF0.OBJECT: {
-            const val = this.decodeAMF0Obj(buffer);
+            const val = this.readAMF0Value(buffer, this.AMF0.OBJECT);
             this.objTable.push(val);
             result.push(val);
             break;
           }
           case this.AMF0.STRICT_ARRAY: {
-            const val = this.readAMF0StrictArray(buffer);
+            const val = this.readAMF0Value(buffer, this.AMF0.STRICT_ARRAY);
             this.objTable.push(val);
             result.push(val);
             break;
@@ -349,6 +375,69 @@ class AMF {
       }
     }
     return result;
+  }
+
+  writeAMF0Value(type, value) {
+    this.AMF0 = {
+      NUMBER: 0x00,
+      BOOLEAN: 0x01,
+      STRING: 0x02,
+      OBJECT: 0x03,
+      NULL: 0x05,
+      ECMA_ARRAY: 0x08,
+      OBJECT_END: 0x09,
+      STRICT_ARRAY: 0x0a,
+      DATE: 0x0b,
+      LONG_STRING: 0x0c,
+      XML: 0X0f,
+      TYPED_OBJECT: 0x10,
+      AMF3: 0x11,
+    };
+
+    switch (type) {
+      case 'null':
+        return Buffer.from([0x05]);
+      case 'boolean':
+        return value ? Buffer.from([0x01]) : Buffer.from([0x00]);
+      case 'string': {
+        const result = Buffer.alloc(3 + value.length);
+        result[0] = 0x02;
+        result.writeUIntBE(value.length, 1, 2);
+        result.write(value, 3);
+        return result;
+      }
+      case 'object':
+        // Decide between object, strict array
+        if (value.length) {
+
+        } else {
+
+        }
+        break;
+      case 'number': {
+        const result = Buffer.alloc(9);
+        result[0] = 0x00;
+        result.writeUIntBE(value, 1, 8);
+        return result;
+      }
+      default:
+        // can't encode symbosl :/
+        break;
+    }
+    /*
+    null
+    undefined
+    boolean
+    number
+    string
+    object
+    symbol
+    */
+  }
+
+  encodeAMF0(obj) {
+
+
   }
 }
 
