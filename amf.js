@@ -426,6 +426,12 @@ class AMF {
     }
     return result;
   }
+
+  getNewAMF() {
+    return new AMF();
+  }
 }
 
-module.exports = AMF;
+const instance = new AMF();
+
+module.exports = instance;

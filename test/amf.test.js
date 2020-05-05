@@ -1,6 +1,4 @@
-const AMF = require('../amf');
-
-const amfEncoder = new AMF();
+const amfEncoder = require('../amf');
 
 function testDecode(hexString) {
   const buffer = Buffer.from(hexString, 'hex');
