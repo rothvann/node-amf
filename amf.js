@@ -379,8 +379,7 @@ class AMF {
             const type = typeof val;
             result = Buffer.concat([result, this.writeAMF0Value(type, val)]);
           }
-          const endMarker = Buffer.from([0x00, 0x00, 0x09]);
-          return Buffer.concat([result, endMarker]);
+          return result;
         }
         let result = Buffer.alloc(1);
         result[0] = 0x03;
@@ -390,7 +389,7 @@ class AMF {
           const val = this.writeAMF0Value(type, value[key]);
           result = Buffer.concat([result, property, val]);
         }
-        result = Buffer.concat([result, Buffer.from([0x00, 0x00])]);
+        result = Buffer.concat([result, Buffer.from([0x00, 0x00, 0x09])]);
         return result;
 
         break;
