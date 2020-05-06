@@ -358,8 +358,6 @@ class AMF {
 
   writeAMF0Value(type, value) {
     switch (type) {
-      case 'null':
-        return Buffer.from([0x05]);
       case 'boolean':
         return value ? Buffer.from([0x01, 0x01]) : Buffer.from([0x01, 0x00]);
       case 'string': {
@@ -370,6 +368,10 @@ class AMF {
         return result;
       }
       case 'object':
+      // javascript bug null is an object
+        if(!value) {
+          return Buffer.from([0x05]);
+        }
         // Decide between object, strict array
         if (value.length) {
           let result = Buffer.alloc(5);
