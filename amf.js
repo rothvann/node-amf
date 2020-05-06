@@ -379,7 +379,8 @@ class AMF {
             const type = typeof val;
             result = Buffer.concat([result, this.writeAMF0Value(type, val)]);
           }
-          return result;
+          const endMarker = Buffer.from([0x00, 0x00, 0x09]);
+          return Buffer.concat([result, endMarker]);
         }
         let result = Buffer.alloc(1);
         result[0] = 0x03;
